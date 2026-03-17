@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,700" rel="stylesheet" type="text/css">
+  <title>AudioMoG</title>
+  <style>
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: linear-gradient(rgba(255, 255, 255, 0.0), rgba(255, 255, 255, 0.5)), url('background.png') no-repeat center center fixed; /* 设置背景图和渐变 */
+      background-size: cover; /* 使背景图覆盖整个页面 */
+      margin: 0;
+      padding: 0;
+    }
+    h1 {
+      color: #2166ac;
+      text-align: center;
+      font-size: 2.2em;
+      margin-bottom: 0.5em;
+    }
+    h2 {
+      color: #4d4d4d; /* 深灰色 */
+      text-align: center;
+      margin-top: 2em;
+    }
+    p {
+      color: #4d4d4d; /* 深灰色文字 */
+      text-align: center;
+      font-size: 1.5em; /* 放大文字 */
+      margin-top: 0.5em;
+      margin-bottom: 0.5em;
+      padding-left: 12%; /* 根据需要调整百分比 */
+      padding-right: 12%; /* 根据需要调整百分比 */
+    }
+    .abstract-text {
+      margin-left: 20px;
+      margin-right: 20px;
+      text-align: justify;
+    }
+    .corner-image {
+      position: absolute;
+      top: 0px; /* 根据需要调整位置 */
+      left: 0px; /* 根据需要调整位置 */
+      width: 200px; /* 根据需要调整大小 */
+      height: auto;
+    }
+    .pdf-image {
+      display: block;
+      margin: 40px auto;
+      width: 73%; /* 根据需要调整宽度 */
+    }
+    .container {
+      width: 80%;
+      margin: auto;
+      background-color: rgba(255, 255, 255, 0.7); /* 浅灰色带透明度 */
+      padding: 20px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0);
+    }
+    h1 {
+      color: #2166ac;
+      text-align: center;
+      font-size: 2.2em;
+      margin-bottom: 0.5em;
+    }
+    h2 {
+      color: #4d4d4d;
+      text-align: center;
+      margin-top: 2em;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      padding: 10px;
+      text-align: center;
+      vertical-align: middle;
+      background-color: rgba(255, 255, 255, 0); /* 浅灰色带透明度 */
+      color: #4d4d4d;
+    }
+    audio {
+      width: 90%;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header role="banner">
+      <h1>AudioMoG: Guiding Audio Generation</h1>
+      <h1>with Mixture-of-Guidance</h1>
+      <p>Anonymous<sup>*1</sup></p>
+      <p><sup>1</sup>Anonymous University</p>
+    </header>
+    <!-- <img src="DALL·E 2024-05-26 18.41.33 - A cute cat wearing AirPods in an ancient Chinese style, with the AirPods positioned on its ears, which are on top of its head. The cat has its eyes cl.webp" alt="Corner Image" class="corner-image"> -->
+    <section>
+      <h2 id="abstract">
+        <font color="000000">Abstract</font>
+      </h2>
+      <p class="abstract-text">
+        <font color="000000"> The design of diffusion-based audio generation systems has been investigated from diverse perspectives, such as data space, network architecture, and conditioning techniques, while most of these innovations require model re-training. In sampling, classifier-free guidance (CFG) has been uniformly adopted to enhance generation quality by strengthening condition alignment. However, CFG often compromises diversity, resulting in suboptimal performance. Although the recent autoguidance (AG) method proposes another direction of guidance that maintains diversity, its direct application in audio generation has so far underperformed CFG. In this work, we introduce AudioMoG, an improved sampling method that enhances text-to-audio (T2A) and video-to-audio (V2A) generation quality without requiring extensive training resources. We start with an analysis of both CFG and AG, examining their respective advantages and limitations for guiding diffusion models. Building upon our insights, we introduce a mixture-of-guidance framework that integrates diverse guidance signals with their interaction terms (e.g., the unconditional bad version of the model) to maximize cumulative advantages. Experiments show that, given the same inference speed, our approach consistently outperforms single guidance in T2A generation across sampling steps, concurrently showing advantages in V2A, text-to-music (T2M), and image generation.</font>
+      </p>
+      <img src="figure1a_transparent.png" alt="PDF Image" class="pdf-image">
+      <!-- <img src="method.png" alt="PDF Image" class="pdf-image"> -->
+      <img src="123_transparent.png" alt="PDF Image" class="pdf-image">
+      <!-- <img src="metrics.png" alt="PDF Image" class="pdf-image"> -->
+    </section>
+    <main role="main">
+      <section>
+        <h2>Examples of prompts in AudioCaps test set</h2>
+        <table>
+          <thead>
+            <tr>
+              <th width="16%">Description</th>
+              <th width="16%">Ours (HG)</th>
+              <th width="16%">Ours (PG)</th>
+              <th width="16%">CFG-only</th>
+              <th width="16%">AudioLDM 2</th>
+              <th width="16%">Ground Truth</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                A honking horn from an oncoming train
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/HG/Y0yETgW44MZU.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/PG/Y0yETgW44MZU.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/CFG/Y0yETgW44MZU.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/AudioLDM2/Y0yETgW44MZU.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/GT/Y0yETgW44MZU.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+            </tr>
+            <tr> 
+              <td>
+                A motor engine humming as liquid sprays and music plays in the background
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/HG/Y1j5NMuq1X30.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/PG/Y1j5NMuq1X30.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/CFG/Y1j5NMuq1X30.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/AudioLDM2/Y1j5NMuq1X30.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/GT/Y1j5NMuq1X30.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+            </tr>
+            <tr> 
+              <td>
+                An engine idling followed by the engine revving
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/HG/Y1N_DtRpdAp8.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/PG/Y1N_DtRpdAp8.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/CFG/Y1N_DtRpdAp8.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/AudioLDM2/Y1N_DtRpdAp8.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/GT/Y1N_DtRpdAp8.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+            </tr>
+            <tr> 
+              <td>
+                Some humming followed by a toilet flushing
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/HG/Y2ErfX6ZT5pM.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/PG/Y2ErfX6ZT5pM.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/CFG/Y2ErfX6ZT5pM.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/AudioLDM2/Y2ErfX6ZT5pM.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/GT/Y2ErfX6ZT5pM.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                A machine is drilling
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/HG/Y2msevPMQB4M.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/PG/Y2msevPMQB4M.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/CFG/Y2msevPMQB4M.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/AudioLDM2/Y2msevPMQB4M.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/GT/Y2msevPMQB4M.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                A siren with people talking faintly in the background
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/HG/Y2ymiXjImwGs.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/PG/Y2ymiXjImwGs.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/CFG/Y2ymiXjImwGs.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/AudioLDM2/Y2ymiXjImwGs.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/GT/Y2ymiXjImwGs.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+            </tr>
+            <tr> 
+              <td>
+                A distant horn ring as a vehicle approaches
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/HG/Y-aYumc8KoXg.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/PG/Y-aYumc8KoXg.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/CFG/Y-aYumc8KoXg.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/AudioLDM2/Y-aYumc8KoXg.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/GT/Y-aYumc8KoXg.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+            </tr>
+            <tr> 
+              <td>
+                A man is speaking with people talking and whooshing noises in the background
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/HG/Y-mhFGevxLUg.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/PG/Y-mhFGevxLUg.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/CFG/Y-mhFGevxLUg.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/AudioLDM2/Y-mhFGevxLUg.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/GT/Y-mhFGevxLUg.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                A person speaking, followed by a number of people laughing
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/HG/Y_oKXrY5Ff0g.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/PG/Y_oKXrY5Ff0g.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/CFG/Y_oKXrY5Ff0g.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/AudioLDM2/Y_oKXrY5Ff0g.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/GT/Y_oKXrY5Ff0g.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+            </tr>
+            <tr> 
+              <td>
+                A child crying and a car door closing
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/HG/Y_YS5uKWoB6g.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/PG/Y_YS5uKWoB6g.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/CFG/Y_YS5uKWoB6g.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/AudioLDM2/Y_YS5uKWoB6g.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo/GT/Y_YS5uKWoB6g.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section>
+        <h2>Examples of prompts in MusicCaps</h2>
+        <table>
+          <thead>
+            <tr>
+              <th width="20%">Description</th>
+              <th width="20%">Ours (HG)</th>
+              <th width="20%">CFG-only</th>
+              <th width="20%">AudioLDM 2-Music</th>
+              <th width="20%">Ground Truth</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr> 
+              <td>
+                The Pop song features harmonizing vocals singing over energetic crash cymbals, groovy bass guitar, wide electric guitar melody, punchy snare and soft kick hits. There is a short drum break at the very beginning of the loop. It sounds happy, nostalgic and euphoric, as it gives off vibes of a Christmas song.
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo_mc/HG/_3OlK_1yQOk.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo_mc/CFG/_3OlK_1yQOk.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo_mc/AudioLDM2-music/_3OlK_1yQOk.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo_mc/GT/_3OlK_1yQOk.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+            </tr><tr> 
+              <td>
+                This is a religious music piece. There is a female vocalist singing melodically in the Portuguese language with a Brazilian accent. The piano and the violin are playing a mellow tune. The atmosphere is spiritual. Although the words give the impression it is a Christian gospel, the footage in the video belongs to the site of a syncretic movement, so one should not mistakenly take it as a gospel piece.
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo_mc/HG/_cf0WYQcNvk.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo_mc/CFG/_cf0WYQcNvk.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo_mc/AudioLDM2-music/_cf0WYQcNvk.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo_mc/GT/_cf0WYQcNvk.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+            </tr><tr> 
+              <td>
+                This is an instrumental cover of a ballad piece. The harp is gently playing the melody with improvisational touches differing from the original version. There is a calming and soothing atmosphere to this piece. This music could be playing in the background at a hotel or a spa resort.
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo_mc/HG/_HfaIP9e0ww.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo_mc/CFG/_HfaIP9e0ww.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo_mc/AudioLDM2-music/_HfaIP9e0ww.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo_mc/GT/_HfaIP9e0ww.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+            </tr><tr> 
+              <td>
+                The R&B song features a passionate male vocalist singing over a wide funky electric guitar melody, smooth bass guitar, punchy kick and snare hits, shimmering hi hats, snappy rimshots and soft crash cymbals. The rimshots are present in the first half of the loop, while a more energetic second part of the loop consists of punchy snare hits. It sounds emotional and heartfelt, as the vocal is slightly distorted.
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo_mc/HG/_m-N4i-ge28.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo_mc/CFG/_m-N4i-ge28.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo_mc/AudioLDM2-music/_m-N4i-ge28.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo_mc/GT/_m-N4i-ge28.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+            </tr><tr> 
+              <td>
+                A female vocalist sings this delicate harmony. The tempo is slow with an organ accompaniment. It is soft, mellow, meditative, enigmatic, mysterious, melancholic and haunting. This song is a Modern Classical.
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo_mc/HG/_nrz_BawPMY.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo_mc/CFG/_nrz_BawPMY.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo_mc/AudioLDM2-music/_nrz_BawPMY.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo_mc/GT/_nrz_BawPMY.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+            </tr><tr> 
+              <td>
+                This song contains an acoustic drum playing and comes to an end. Then a violin is playing the main melody together with a bass horn and other brass instruments in a higher register. A xylophone is also playing the melody in a higher octave. This song may be playing during a funny magic show.
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo_mc/HG/_pU2KbHMN4Q.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo_mc/CFG/_pU2KbHMN4Q.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo_mc/AudioLDM2-music/_pU2KbHMN4Q.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo_mc/GT/_pU2KbHMN4Q.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+            </tr><tr> 
+              <td>
+                This is a live acoustic performance of an Irish folk music piece. The chords of the piece are being played by two acoustic guitars in the background while a violin is playing the main theme which is in medium-to-high range. Since the piece is being played at a pub, the sounds of the place can also be heard in the recording. There is a jovial atmosphere. This piece can be played at Irish pubs.
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo_mc/HG/_RrA-0lfIiU.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo_mc/CFG/_RrA-0lfIiU.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo_mc/AudioLDM2-music/_RrA-0lfIiU.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo_mc/GT/_RrA-0lfIiU.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+            </tr><tr> 
+              <td>
+                This song contains someone strumming chords on an acoustic guitar while playing a harmonica. This song may be playing at a local bar.
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo_mc/HG/_xURU_-ffC4.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo_mc/CFG/_xURU_-ffC4.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo_mc/AudioLDM2-music/_xURU_-ffC4.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo_mc/GT/_xURU_-ffC4.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+            </tr><tr> 
+              <td>
+                The Alternative/Indie song features an intimate, widely spread, mixed vocals singing over noisy snare, punchy kick, wide tinny hi hats, electric guitar melody, synth lead melody and groovy bass guitar. At the end of the loop there is a short snare roll and some claps. It sounds easygoing and melancholic thanks to those vocals.
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo_mc/HG/-BHPu-dPmWQ.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo_mc/CFG/-BHPu-dPmWQ.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo_mc/AudioLDM2-music/-BHPu-dPmWQ.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo_mc/GT/-BHPu-dPmWQ.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+            </tr><tr> 
+              <td>
+                This is a Kurdish folk music piece. The main melody is first played by the baglama and then by the zurna. The rhythmic background consists of an electronic drum beat and supportive percussive elements. The atmosphere is lively. This piece could be used as an accompaniment piece for a folk dance course such as the halay dance.
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo_mc/HG/-cLzki-B06o.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo_mc/CFG/-cLzki-B06o.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo_mc/AudioLDM2-music/-cLzki-B06o.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+              <td>
+                <audio controls>
+                  <source src="demo_mc/GT/-cLzki-B06o.wav" type="audio/wav">
+                  Your browser does not support the audio element.
+                </audio>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section>
+        <h2>Examples of generated audios in VGGSound</h2>
+        <table>
+          <thead>
+            <tr>
+              <th width="20%">Video (GT)</th>
+              <th width="20%">Ours (HG)</th>
+              <th width="20%">CFG-only</th>
+              <th width="20%">Diff-Foley</th>
+              <th width="20%">Foley-Crafter</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><video controls width="100%"><source src="demo_v2a/Video/__2MwJ2uHu0_000004.mp4" type="video/mp4">Your browser does not support the video element.</video></td>
+              <td><audio controls><source src="demo_v2a/HG/__2MwJ2uHu0_000004.wav" type="audio/wav">Your browser does not support the audio element.</audio></td>
+              <td><audio controls><source src="demo_v2a/CFG/__2MwJ2uHu0_000004.wav" type="audio/wav">Your browser does not support the audio element.</audio></td>
+              <td><audio controls><source src="demo_v2a/Diff-foley/__2MwJ2uHu0_000004.wav" type="audio/wav">Your browser does not support the audio element.</audio></td>
+              <td><audio controls><source src="demo_v2a/Foley-crafter/__2MwJ2uHu0_000004.wav" type="audio/wav">Your browser does not support the audio element.</audio></td>
+            </tr>
+            <tr>
+              <td><video controls width="100%"><source src="demo_v2a/Video/__uEjp7_UDw_000100.mp4" type="video/mp4">Your browser does not support the video element.</video></td>
+              <td><audio controls><source src="demo_v2a/HG/__uEjp7_UDw_000100.wav" type="audio/wav">Your browser does not support the audio element.</audio></td>
+              <td><audio controls><source src="demo_v2a/CFG/__uEjp7_UDw_000100.wav" type="audio/wav">Your browser does not support the audio element.</audio></td>
+              <td><audio controls><source src="demo_v2a/Diff-foley/__uEjp7_UDw_000100.wav" type="audio/wav">Your browser does not support the audio element.</audio></td>
+              <td><audio controls><source src="demo_v2a/Foley-crafter/__uEjp7_UDw_000100.wav" type="audio/wav">Your browser does not support the audio element.</audio></td>
+            </tr>
+            <tr>
+              <td><video controls width="100%"><source src="demo_v2a/Video/_-2TnOBpZqw_000070.mp4" type="video/mp4">Your browser does not support the video element.</video></td>
+              <td><audio controls><source src="demo_v2a/HG/_-2TnOBpZqw_000070.wav" type="audio/wav">Your browser does not support the audio element.</audio></td>
+              <td><audio controls><source src="demo_v2a/CFG/_-2TnOBpZqw_000070.wav" type="audio/wav">Your browser does not support the audio element.</audio></td>
+              <td><audio controls><source src="demo_v2a/Diff-foley/_-2TnOBpZqw_000070.wav" type="audio/wav">Your browser does not support the audio element.</audio></td>
+              <td><audio controls><source src="demo_v2a/Foley-crafter/_-2TnOBpZqw_000070.wav" type="audio/wav">Your browser does not support the audio element.</audio></td>
+            </tr>
+            <tr>
+              <td><video controls width="100%"><source src="demo_v2a/Video/_3t8P1eqyvo_000030.mp4" type="video/mp4">Your browser does not support the video element.</video></td>
+              <td><audio controls><source src="demo_v2a/HG/_3t8P1eqyvo_000030.wav" type="audio/wav">Your browser does not support the audio element.</audio></td>
+              <td><audio controls><source src="demo_v2a/CFG/_3t8P1eqyvo_000030.wav" type="audio/wav">Your browser does not support the audio element.</audio></td>
+              <td><audio controls><source src="demo_v2a/Diff-foley/_3t8P1eqyvo_000030.wav" type="audio/wav">Your browser does not support the audio element.</audio></td>
+              <td><audio controls><source src="demo_v2a/Foley-crafter/_3t8P1eqyvo_000030.wav" type="audio/wav">Your browser does not support the audio element.</audio></td>
+            </tr>
+            <tr>
+              <td><video controls width="100%"><source src="demo_v2a/Video/_4nHLSN4J0E_000032.mp4" type="video/mp4">Your browser does not support the video element.</video></td>
+              <td><audio controls><source src="demo_v2a/HG/_4nHLSN4J0E_000032.wav" type="audio/wav">Your browser does not support the audio element.</audio></td>
+              <td><audio controls><source src="demo_v2a/CFG/_4nHLSN4J0E_000032.wav" type="audio/wav">Your browser does not support the audio element.</audio></td>
+              <td><audio controls><source src="demo_v2a/Diff-foley/_4nHLSN4J0E_000032.wav" type="audio/wav">Your browser does not support the audio element.</audio></td>
+              <td><audio controls><source src="demo_v2a/Foley-crafter/_4nHLSN4J0E_000032.wav" type="audio/wav">Your browser does not support the audio element.</audio></td>
+            </tr>
+            <tr>
+              <td><video controls width="100%"><source src="demo_v2a/Video/_6uZ1HyHSQY_000110.mp4" type="video/mp4">Your browser does not support the video element.</video></td>
+              <td><audio controls><source src="demo_v2a/HG/_6uZ1HyHSQY_000110.wav" type="audio/wav">Your browser does not support the audio element.</audio></td>
+              <td><audio controls><source src="demo_v2a/CFG/_6uZ1HyHSQY_000110.wav" type="audio/wav">Your browser does not support the audio element.</audio></td>
+              <td><audio controls><source src="demo_v2a/Diff-foley/_6uZ1HyHSQY_000110.wav" type="audio/wav">Your browser does not support the audio element.</audio></td>
+              <td><audio controls><source src="demo_v2a/Foley-crafter/_6uZ1HyHSQY_000110.wav" type="audio/wav">Your browser does not support the audio element.</audio></td>
+            </tr>
+            <tr>
+              <td><video controls width="100%"><source src="demo_v2a/Video/_AUtYTaYMrE_000100.mp4" type="video/mp4">Your browser does not support the video element.</video></td>
+              <td><audio controls><source src="demo_v2a/HG/_AUtYTaYMrE_000100.wav" type="audio/wav">Your browser does not support the audio element.</audio></td>
+              <td><audio controls><source src="demo_v2a/CFG/_AUtYTaYMrE_000100.wav" type="audio/wav">Your browser does not support the audio element.</audio></td>
+              <td><audio controls><source src="demo_v2a/Diff-foley/_AUtYTaYMrE_000100.wav" type="audio/wav">Your browser does not support the audio element.</audio></td>
+              <td><audio controls><source src="demo_v2a/Foley-crafter/_AUtYTaYMrE_000100.wav" type="audio/wav">Your browser does not support the audio element.</audio></td>
+            </tr>
+            <tr>
+              <td><video controls width="100%"><source src="demo_v2a/Video/_bCTc6OBaM0_000208.mp4" type="video/mp4">Your browser does not support the video element.</video></td>
+              <td><audio controls><source src="demo_v2a/HG/_bCTc6OBaM0_000208.wav" type="audio/wav">Your browser does not support the audio element.</audio></td>
+              <td><audio controls><source src="demo_v2a/CFG/_bCTc6OBaM0_000208.wav" type="audio/wav">Your browser does not support the audio element.</audio></td>
+              <td><audio controls><source src="demo_v2a/Diff-foley/_bCTc6OBaM0_000208.wav" type="audio/wav">Your browser does not support the audio element.</audio></td>
+              <td><audio controls><source src="demo_v2a/Foley-crafter/_bCTc6OBaM0_000208.wav" type="audio/wav">Your browser does not support the audio element.</audio></td>
+            </tr>
+            <tr>
+              <td><video controls width="100%"><source src="demo_v2a/Video/_DGLk4D-leg_000018.mp4" type="video/mp4">Your browser does not support the video element.</video></td>
+              <td><audio controls><source src="demo_v2a/HG/_DGLk4D-leg_000018.wav" type="audio/wav">Your browser does not support the audio element.</audio></td>
+              <td><audio controls><source src="demo_v2a/CFG/_DGLk4D-leg_000018.wav" type="audio/wav">Your browser does not support the audio element.</audio></td>
+              <td><audio controls><source src="demo_v2a/Diff-foley/_DGLk4D-leg_000018.wav" type="audio/wav">Your browser does not support the audio element.</audio></td>
+              <td><audio controls><source src="demo_v2a/Foley-crafter/_DGLk4D-leg_000018.wav" type="audio/wav">Your browser does not support the audio element.</audio></td>
+            </tr>
+            <tr>
+              <td><video controls width="100%"><source src="demo_v2a/Video/_J1bIBIxGEc_000222.mp4" type="video/mp4">Your browser does not support the video element.</video></td>
+              <td><audio controls><source src="demo_v2a/HG/_J1bIBIxGEc_000222.wav" type="audio/wav">Your browser does not support the audio element.</audio></td>
+              <td><audio controls><source src="demo_v2a/CFG/_J1bIBIxGEc_000222.wav" type="audio/wav">Your browser does not support the audio element.</audio></td>
+              <td><audio controls><source src="demo_v2a/Diff-foley/_J1bIBIxGEc_000222.wav" type="audio/wav">Your browser does not support the audio element.</audio></td>
+              <td><audio controls><source src="demo_v2a/Foley-crafter/_J1bIBIxGEc_000222.wav" type="audio/wav">Your browser does not support the audio element.</audio></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+    </main>
+  </div>
+</body>
+
+</html>
